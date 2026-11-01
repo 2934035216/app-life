@@ -1,0 +1,171 @@
+/* layout.css —— 左侧导航、页面容器、看板列宽、<720px 抽屉化 */
+body {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  padding: 18px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  z-index: 30;
+}
+
+.nav-brand {
+  padding: 2px 10px 6px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.nav-brand small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group-title {
+  padding: 0 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 1px;
+  margin-bottom: 3px;
+}
+.nav-group.system { margin-top: auto; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  font-size: 13.5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--bg-soft); color: var(--text); }
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent-soft);
+  font-weight: 600;
+}
+.nav-item .nav-icon { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.nav-item .nav-icon svg { width: 17px; height: 17px; }
+
+.view {
+  min-width: 0;
+  padding: 26px 32px 60px;
+  max-width: 1280px;
+  width: 100%;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.page-head .page-title-block { min-width: 200px; }
+.page-head .page-sub { color: var(--text-muted); font-size: 12.5px; margin-top: 2px; }
+.page-head .page-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.nav-toggle {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 60;
+  padding: 6px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  body { grid-template-columns: 180px minmax(0, 1fr); }
+  .view { padding: 24px 20px 50px; }
+}
+
+@media (max-width: 719px) {
+  body { display: block; }
+  .nav-toggle { display: inline-flex; }
+  .nav {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 232px;
+    transform: translateX(-102%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow);
+  }
+  .nav.open { transform: translateX(0); }
+  .view { padding: 58px 14px 50px; max-width: none; }
+  .home-grid, .dev-layout, .consult-layout { grid-template-columns: 1fr !important; }
+  .card-grid { grid-template-columns: 1fr !important; }
+  .board { grid-template-columns: 1fr !important; }
+  .page-head .page-actions { margin-left: 0; }
+}
+
+/* 首页两栏 */
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+/* 开发工作：左项目栏 + 右详情 */
+.dev-layout {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+/* 咨询：列表 */
+.consult-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+/* 六卡网格 */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* 自媒体看板四列 */
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+/* 健身模板七格 */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+/* 饮食 */
+.diet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 860px) { .diet-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,17 @@
+# 运行期数据（app-data.json、备份文件等全部不入库）
+data/
+
+# Python 缓存与虚拟环境
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 临时日志与中间文件
+*.log
+*.err
+*.tmp
+
+# 测试/工具生成的截图与分享包
+.screenshots/
+.trae-html-share-packages/
