@@ -698,3 +698,34 @@
 .welcome-card ul { display: flex; flex-direction: column; gap: 9px; margin-bottom: 20px; }
 .welcome-card li { font-size: 13.5px; color: var(--text-soft); display: flex; gap: 8px; }
 .welcome-card li span.dot { color: var(--accent); }
+
+/* ---------------- 自媒体：发布后数据 ---------------- */
+.perf-empty {
+  padding: 20px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  text-align: center;
+}
+.perf-totals { display: flex; gap: 26px; flex-wrap: wrap; margin-bottom: 16px; }
+.perf-stat { display: flex; align-items: baseline; gap: 7px; }
+.perf-stat strong { font-size: 20px; font-weight: 700; color: var(--text); }
+.perf-stat span { font-size: 11.5px; color: var(--text-muted); }
+.perf-rows { display: flex; flex-direction: column; gap: 12px; }
+.perf-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) 86px repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.perf-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.perf-bar-label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; white-space: nowrap; }
+.perf-bar-track { height: 6px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; }
+.perf-bar-fill { height: 100%; border-radius: 999px; min-width: 2px; }
+.perf-bar.views .perf-bar-fill { background: var(--source-selfmedia, var(--accent)); }
+.perf-bar.likes .perf-bar-fill { background: var(--warning); }
+.perf-bar.comments .perf-bar-fill { background: var(--success); }
+@media (max-width: 860px) {
+  .perf-row { grid-template-columns: minmax(0, 1fr) 72px; grid-auto-rows: auto; }
+  .perf-bar { grid-column: span 2; }
+}

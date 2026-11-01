@@ -71,6 +71,20 @@ class P4aSelfmediaTest(unittest.TestCase):
         self.assertIn("deleteWithUndo({", self.source)
 
 
+    def test_published_performance_chart_and_empty_states(self):
+        self.assertIn("contentPerformance", self.source)
+        self.assertIn("box.append(buildPerformanceCard());", self.source)
+        self.assertIn("text: '发布后视频数据'", self.source)
+        self.assertIn("还没有已发布内容；发布并回填数据后，这里会显示表现。", self.source)
+        self.assertIn("已发布内容还没有回填播放/点赞/评论，打开详情补填后图表会自动更新。", self.source)
+        self.assertIn("perfBar('播放', item.views, perf.max.views, 'views')", self.source)
+        self.assertIn("perfBar('赞', item.likes, perf.max.likes, 'likes')", self.source)
+        self.assertIn("perfBar('评', item.comments, perf.max.comments, 'comments')", self.source)
+        css = read(os.path.join(CSS, "components.css"))
+        self.assertIn(".perf-empty {", css)
+        self.assertIn(".perf-bar-fill {", css)
+
+
 class P4bDevTest(unittest.TestCase):
     def setUp(self):
         self.source = read(os.path.join(VIEWS, "dev.js"))

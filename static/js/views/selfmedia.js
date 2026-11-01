@@ -3,6 +3,7 @@ import { debounce, fmtDateCN, nowISO, sortByKeyDesc, visibleItems } from '../uti
 import {
   CONTENT_STATUS,
   PLATFORM_OPTIONS,
+  contentPerformance,
   createContent,
   deleteContent,
   findById,
@@ -191,6 +192,7 @@ function buildCard(item) {
 }
 
 function renderList(items, box) {
+  box.append(buildPerformanceCard());
   const list = visibleItems(items).filter((item) => item.status === 'published');
   if (!list.length) {
     box.append(emptyState('还没有已发布的内容。', '回到看板', () => { R.view = 'board'; draw(); }));
@@ -215,6 +217,62 @@ function renderList(items, box) {
     ]));
   });
   box.append(card);
+}
+
+function perfStat(label, value) {
+  return el('div', { class: 'perf-stat' }, [
+    el('strong', { text: String(value) }),
+    el('span', { text: label }),
+  ]);
+}
+
+function perfBar(label, value, max, kind) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return el('div', { class: 'perf-bar ' + kind }, [
+    el('span', { class: 'perf-bar-label', text: label + ' ' + value }),
+    el('div', { class: 'perf-bar-track' }, [
+      el('div', { class: 'perf-bar-fill', style: { width: pct + '%' } }),
+    ]),
+  ]);
+}
+
+function buildPerformanceCard() {
+  const perf = contentPerformance(R.ctx.store.data.contents);
+  const card = el('section', { class: 'section-card performance-card', style: { marginBottom: '14px' } });
+  card.append(el('div', { class: 'section-head' }, [
+    el('h2', { text: '发布后视频数据' }),
+    el('span', {
+      class: 'section-sub',
+      text: perf.publishedCount
+        ? '最近 ' + perf.items.length + ' 条已发布 · 播放/点赞/评论来自手动回填'
+        : '播放/点赞/评论来自手动回填',
+    }),
+  ]));
+  if (!perf.publishedCount) {
+    card.append(el('div', { class: 'perf-empty muted', text: '还没有已发布内容；发布并回填数据后，这里会显示表现。' }));
+    return card;
+  }
+  if (!perf.hasData) {
+    card.append(el('div', { class: 'perf-empty muted', text: '已发布内容还没有回填播放/点赞/评论，打开详情补填后图表会自动更新。' }));
+    return card;
+  }
+  card.append(el('div', { class: 'perf-totals' }, [
+    perfStat('播放合计', perf.totals.views),
+    perfStat('点赞合计', perf.totals.likes),
+    perfStat('评论合计', perf.totals.comments),
+  ]));
+  const rows = el('div', { class: 'perf-rows' });
+  perf.items.forEach((item) => {
+    rows.append(el('div', { class: 'perf-row' }, [
+      el('div', { class: 'perf-title', title: item.title, text: item.title }),
+      el('span', { class: 'perf-date muted tiny', text: item.publishedDate ? fmtDateCN(item.publishedDate) : '—' }),
+      perfBar('播放', item.views, perf.max.views, 'views'),
+      perfBar('赞', item.likes, perf.max.likes, 'likes'),
+      perfBar('评', item.comments, perf.max.comments, 'comments'),
+    ]));
+  });
+  card.append(rows);
+  return card;
 }
 
 async function handleDrop(status, id) {

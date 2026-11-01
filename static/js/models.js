@@ -118,6 +118,46 @@ export function deleteContent(data, id) {
   return removeItem(data.contents, id);
 }
 
+/** 已发布内容的表现汇总：只统计已发布且未挂起删除的条目，数据来自手动回填 */
+export function contentPerformance(contents, limit = 8) {
+  const published = (contents || []).filter((item) => (
+    item && item.status === 'published' && !item._pendingDelete
+  ));
+  const sorted = published.slice().sort((a, b) => (
+    String(b.publishedDate || '').localeCompare(String(a.publishedDate || ''))
+  ));
+  const take = Math.max(1, Math.floor(Number(limit) || 8));
+  const items = sorted.slice(0, take).map((item) => {
+    const metrics = item.metrics || {};
+    return {
+      id: item.id,
+      title: item.title || '（未命名）',
+      publishedDate: item.publishedDate || null,
+      views: Math.max(0, Math.floor(Number(metrics.views) || 0)),
+      likes: Math.max(0, Math.floor(Number(metrics.likes) || 0)),
+      comments: Math.max(0, Math.floor(Number(metrics.comments) || 0)),
+    };
+  });
+  const totals = items.reduce((acc, item) => {
+    acc.views += item.views;
+    acc.likes += item.likes;
+    acc.comments += item.comments;
+    return acc;
+  }, { views: 0, likes: 0, comments: 0 });
+  const max = {
+    views: Math.max(0, ...items.map((item) => item.views)),
+    likes: Math.max(0, ...items.map((item) => item.likes)),
+    comments: Math.max(0, ...items.map((item) => item.comments)),
+  };
+  return {
+    items,
+    totals,
+    max,
+    hasData: items.some((item) => item.views || item.likes || item.comments),
+    publishedCount: published.length,
+  };
+}
+
 /* ============ 开发工作 ============ */
 export function createProject(data, fields = {}) {
   const item = Object.assign(base('proj'), {

@@ -15,6 +15,7 @@ import {
   applyMealTemplate,
   buildWorkoutLogFromTemplate,
   clientSessions,
+  contentPerformance,
   createClient,
   createContent,
   createGame,
@@ -423,4 +424,43 @@ test('游戏：三状态流转、累计时长重算、删除级联、本周求�
   assert.equal(data.games.length, 0);
   assert.equal(data.gameSessions.length, 0, '删除游戏级联时长明细');
   assert.ok(extraSession);
+});
+
+/* ---------------- 自媒体：发布后数据图表 ---------------- */
+test('自媒体：发布后数据只汇总已发布、按日期倒序并可空态', () => {
+  const data = baseData();
+  const empty = contentPerformance(data.contents);
+  assert.equal(empty.publishedCount, 0);
+  assert.equal(empty.items.length, 0);
+  assert.equal(empty.hasData, false, '没有已发布内容时为图表空态');
+  assert.deepEqual(empty.totals, { views: 0, likes: 0, comments: 0 });
+
+  const first = createContent(data, { title: '旧视频' });
+  publishContent(data, first.id, { publishedDate: '2026-10-20', link: '' });
+  updateContentMetrics(data, first.id, { views: 120, likes: 9, comments: 2 });
+
+  const second = createContent(data, { title: '新视频' });
+  publishContent(data, second.id, { publishedDate: '2026-10-31', link: '' });
+  updateContentMetrics(data, second.id, { views: 320, likes: 15, comments: 4 });
+
+  createContent(data, { title: '还在选题池' });
+  const pending = createContent(data, { title: '挂起删除' });
+  publishContent(data, pending.id, { publishedDate: '2026-10-25', link: '' });
+  updateContentMetrics(data, pending.id, { views: 999, likes: 99, comments: 99 });
+  pending._pendingDelete = true;
+
+  const perf = contentPerformance(data.contents);
+  assert.equal(perf.publishedCount, 2, '未发布与挂起删除的条目不进图表');
+  assert.deepEqual(perf.items.map((item) => item.title), ['新视频', '旧视频']);
+  assert.deepEqual(perf.totals, { views: 440, likes: 24, comments: 6 });
+  assert.deepEqual(perf.max, { views: 320, likes: 15, comments: 4 });
+  assert.equal(perf.hasData, true);
+
+  const limited = contentPerformance(data.contents, 1);
+  assert.equal(limited.items.length, 1);
+  assert.equal(limited.items[0].title, '新视频');
+  assert.deepEqual(limited.totals, { views: 320, likes: 15, comments: 4 });
+
+  updateContentMetrics(data, second.id, { views: -5 });
+  assert.equal(contentPerformance(data.contents).items[0].views, 0, '负数回填按 0 展示');
 });
