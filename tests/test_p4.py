@@ -171,6 +171,20 @@ class P4cConsultTest(unittest.TestCase):
         self.assertIn("deleteClient(d, target.id)", self.source)
         self.assertIn("sessions.length + ' 条咨询记录一并删除。", self.source)
 
+    def test_client_delete_entry_on_card_and_list(self):
+        self.assertGreaterEqual(self.source.count(
+            "onclick: (event) => { event.stopPropagation(); deleteClientFlow(client); }"), 2,
+            "卡片和列表行都要有删除入口，且不能触发打开详情")
+        self.assertIn("class: 'btn ghost small client-delete'", self.source)
+        self.assertIn("title: '删除客户'", self.source)
+        self.assertIn("title: '删除客户「' + (target.name || '未命名') + '」？'", self.source)
+        self.assertIn("undoLabel: '已删除客户'", self.source)
+        self.assertIn("sessions.forEach((session) => { session._pendingDelete = true; });", self.source)
+        self.assertIn("deleteClientFlow(client)", self.source.split("function renderDetail")[1],
+                      "详情面板底部的删除按钮仍保留")
+        css = read(os.path.join(CSS, "components.css"))
+        self.assertIn(".client-card .client-delete", css)
+
 
 class P4dFitnessTest(unittest.TestCase):
     def setUp(self):

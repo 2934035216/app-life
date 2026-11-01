@@ -12,7 +12,7 @@ import {
   syncClientFollowup,
   updateClient,
 } from '../models.js';
-import { openPanel, closePanel } from '../ui/panel.js';
+import { openPanel, closePanel, isOpen } from '../ui/panel.js';
 import { el, emptyState, deleteWithUndo, field, pageHead } from '../ui/common.js';
 
 let R = null;
@@ -153,6 +153,13 @@ function buildClientGrid(list) {
       el('div', { class: 'client-name' }, [
         el('span', { text: client.name || '（未命名客户）' }),
         el('span', { class: 'badge' + (client.status === 'deal' ? ' ok' : (client.status === 'paused' ? ' warn' : '')), text: CLIENT_STATUS[client.status] || client.status }),
+        el('button', {
+          class: 'btn ghost small client-delete',
+          type: 'button',
+          text: '删除',
+          title: '删除客户',
+          onclick: (event) => { event.stopPropagation(); deleteClientFlow(client); },
+        }),
       ]),
       el('div', { class: 'client-req', text: client.requirement || '还没有填写需求' }),
       el('div', { class: 'client-meta' }, [
@@ -179,9 +186,42 @@ function buildClientList(list) {
       el('span', { class: 'badge', text: CLIENT_STATUS[client.status] || client.status }),
       el('span', { class: 'muted tiny' + (due.due ? ' due-text' : ''), text: due.text || '未设下次跟进' }),
       el('span', { class: 'muted tiny', text: last ? '最近 ' + last : '无记录' }),
+      el('button', {
+        class: 'btn ghost small client-delete',
+        type: 'button',
+        text: '删除',
+        title: '删除客户',
+        onclick: (event) => { event.stopPropagation(); deleteClientFlow(client); },
+      }),
     ]));
   });
   return card;
+}
+
+/* ---------------- 删除客户：确认 + 5 秒撤销 + 级联咨询记录 ---------------- */
+function deleteClientFlow(target) {
+  if (!R) return;
+  const ctx = R.ctx;
+  const reopenPanel = isOpen();
+  const sessions = visibleItems(ctx.store.data.consultSessions).filter((s) => s.clientId === target.id);
+  deleteWithUndo({
+    title: '删除客户「' + (target.name || '未命名') + '」？',
+    body: sessions.length + ' 条咨询记录一并删除。\n删除后 5 秒内可撤销。',
+    undoLabel: '已删除客户',
+    onConfirm: () => {
+      target._pendingDelete = true;
+      sessions.forEach((session) => { session._pendingDelete = true; });
+      closePanel();
+      refreshList();
+    },
+    onCommit: () => ctx.store.mutate((d) => deleteClient(d, target.id)),
+    onUndo: () => {
+      delete target._pendingDelete;
+      sessions.forEach((session) => { delete session._pendingDelete; });
+      refreshList();
+      if (R && reopenPanel) openClientPanel(target.id, {});
+    },
+  });
 }
 
 /* ---------------- 客户详情面板（50%） ---------------- */
@@ -455,28 +495,6 @@ function openClientPanel(id, options) {
         ctx.store.mutate((d) => syncClientFollowup(d, client.id));
         refreshList();
         renderPanelBody();
-      },
-    });
-  }
-
-  function deleteClientFlow(target) {
-    const sessions = visibleItems(ctx.store.data.consultSessions).filter((s) => s.clientId === target.id);
-    deleteWithUndo({
-      title: '删除客户「' + (target.name || '未命名') + '」？',
-      body: sessions.length + ' 条咨询记录一并删除。\n删除后 5 秒内可撤销。',
-      undoLabel: '已删除客户',
-      onConfirm: () => {
-        target._pendingDelete = true;
-        sessions.forEach((session) => { session._pendingDelete = true; });
-        closePanel();
-        refreshList();
-      },
-      onCommit: () => ctx.store.mutate((d) => deleteClient(d, target.id)),
-      onUndo: () => {
-        delete target._pendingDelete;
-        sessions.forEach((session) => { delete session._pendingDelete; });
-        refreshList();
-        if (R) openClientPanel(target.id, {});
       },
     });
   }

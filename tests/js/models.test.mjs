@@ -250,9 +250,15 @@ test('咨询工作：新增记录同步跟进日期，删除回退次新，删�
   assert.equal(data.clients[0].nextFollowupDate, null, '无记录则清空');
 
   const s3 = addConsultSession(data, client.id, { datetime: '2026-11-01T11:00' });
+  const other = createClient(data, { name: '客户 C2' });
+  const keep = addConsultSession(data, other.id, { datetime: '2026-11-01T12:00', topic: '别人的记录' });
   deleteClient(data, client.id);
-  assert.equal(data.clients.length, 0);
-  assert.equal(data.consultSessions.length, 0, '删除客户级联咨询记录');
+  assert.equal(data.clients.length, 1, '只删除目标客户');
+  assert.equal(data.clients[0].id, other.id);
+  assert.equal(clientSessions(data, client.id).length, 0, '删除客户级联咨询记录');
+  assert.equal(clientSessions(data, other.id).length, 1, '不误删其他客户的记录');
+  assert.equal(data.consultSessions.length, 1);
+  assert.equal(data.consultSessions[0].id, keep.id);
   assert.equal(s3.clientId, client.id);
 });
 
