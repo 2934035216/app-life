@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import {
   GAME_STATUS,
   MEAL_TYPES,
+  DEFAULT_PROJECT_NAME,
   addConsultSession,
   addGameSession,
   addLogExercise,
@@ -12,6 +13,7 @@ import {
   addMealItem,
   addTemplateExercise,
   addWaterCup,
+  addWorkItem,
   applyMealTemplate,
   buildWorkoutLogFromTemplate,
   clientSessions,
@@ -181,6 +183,37 @@ test('开发工作：项目进度/状态/任务排序/日志唯一/级联删除'
   assert.equal(data.devProjects.length, 0);
   assert.equal(data.devTasks.length, 0, '删除项目级联任务');
   assert.equal(data.devLogs.length, 0, '删除项目级联日志');
+});
+
+test('开发工作：没有项目也能新增工作项（自动建「我的工作」并进入列表）', () => {
+  const data = baseData();
+  const first = addWorkItem(data, null, { title: '第一件事', dueDate: TODAY, priority: 'high' });
+  assert.equal(data.devProjects.length, 1, '没有项目时应自动建一个项目');
+  assert.equal(data.devProjects[0].name, DEFAULT_PROJECT_NAME);
+  assert.equal(first.createdProject.id, data.devProjects[0].id);
+  assert.equal(first.projectId, data.devProjects[0].id);
+  assert.equal(first.task.projectId, first.projectId);
+  assert.equal(first.task.title, '第一件事');
+  assert.equal(first.task.dueDate, TODAY);
+  assert.equal(first.task.priority, 'high');
+  assert.deepEqual(projectTasks(data, first.projectId).map((t) => t.title), ['第一件事']);
+  assert.deepEqual(projectProgress(data, first.projectId), { done: 0, total: 1 });
+
+  const second = addWorkItem(data, null, { title: '第二件事' });
+  assert.equal(data.devProjects.length, 1, '已有项目时不应重复建默认项目');
+  assert.equal(second.createdProject, null);
+  assert.equal(second.projectId, first.projectId);
+  assert.deepEqual(projectTasks(data, second.projectId).map((t) => t.title), ['第一件事', '第二件事']);
+
+  const other = createProject(data, { name: '项目 B' });
+  const third = addWorkItem(data, other.id, { title: '第三件事' });
+  assert.equal(third.projectId, other.id);
+  assert.deepEqual(projectTasks(data, other.id).map((t) => t.title), ['第三件事']);
+
+  other._pendingDelete = true;
+  const fourth = addWorkItem(data, other.id, { title: '第四件事' });
+  assert.equal(fourth.projectId, first.projectId, '目标项目已挂起时退回可见项目');
+  assert.equal(projectTasks(data, fourth.projectId).some((t) => t.title === '第四件事'), true);
 });
 
 /* ---------------- P4c 咨询工作 ---------------- */

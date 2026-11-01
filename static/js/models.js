@@ -9,6 +9,7 @@ import {
   nowISO,
   today as todayFn,
   uid,
+  visibleItems,
   weekStart,
 } from './utils.js';
 
@@ -208,6 +209,28 @@ export function createTask(data, projectId, fields = {}) {
   }, fields);
   data.devTasks.push(item);
   return item;
+}
+
+/** 没有项目时，直接新增工作项会自动归入这个项目 */
+export const DEFAULT_PROJECT_NAME = '我的工作';
+
+/**
+ * 新增工作项：优先放进指定项目；项目不存在或已挂起时退回当前第一个项目；
+ * 完全没有项目时自动创建一个「我的工作」项目，保证工作项始终能落到列表里。
+ * 返回 { projectId, task, createdProject }。
+ */
+export function addWorkItem(data, projectId, fields = {}) {
+  let target = projectId ? findById(data.devProjects, projectId) : null;
+  if (!target || target._pendingDelete) {
+    target = visibleItems(data.devProjects)[0] || null;
+  }
+  let createdProject = null;
+  if (!target) {
+    target = createProject(data, { name: DEFAULT_PROJECT_NAME });
+    createdProject = target;
+  }
+  const task = createTask(data, target.id, fields);
+  return { projectId: target.id, task, createdProject };
 }
 
 export function updateTask(data, id, patch) {

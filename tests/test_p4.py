@@ -118,6 +118,21 @@ class P4bDevTest(unittest.TestCase):
         self.assertIn("updateDevLog(d, log.id, { blocker: blocker.value }), { long: true })", self.source)
         self.assertIn("moveDevLogDate(d, log.id, date.value)", self.source)
 
+    def test_add_work_item_entry_always_available(self):
+        models = read(os.path.join(JS, "models.js"))
+        self.assertIn("export function addWorkItem", models)
+        self.assertIn("export const DEFAULT_PROJECT_NAME = '我的工作'", models)
+        self.assertIn("text: '＋ 新增工作项'", self.source)
+        self.assertIn("onclick: () => startNewTask()", self.source)
+        self.assertIn("function startNewTask()", self.source)
+        self.assertIn("buildTaskComposer(null)", self.source)
+        self.assertIn("buildTaskComposer(project)", self.source)
+        self.assertIn("addWorkItem(d, project ? project.id : null", self.source)
+        self.assertIn("text: '新增工作项', onclick: submit", self.source)
+        self.assertIn("R.selectedId = result.projectId", self.source)
+        self.assertIn("第一条工作项标题，回车添加", self.source)
+        self.assertIn("还没有项目，自动归入「我的工作」", self.source)
+
 
 class P4cConsultTest(unittest.TestCase):
     def setUp(self):

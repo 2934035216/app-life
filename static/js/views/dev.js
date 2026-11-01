@@ -1,8 +1,8 @@
 // views/dev.js —— 开发工作：项目列表 + 任务/开发日志双页签
 import { fmtDateCN, sortByKeyDesc, visibleItems } from '../utils.js';
 import {
+  addWorkItem,
   createProject,
-  createTask,
   deleteDevLog,
   deleteProject,
   deleteTask,
@@ -65,7 +65,8 @@ function draw() {
   const { root, ctx } = R;
   root.innerHTML = '';
   root.append(pageHead('开发工作', '以项目为单位拆任务、追进度，每天记一笔', [
-    el('button', { class: 'btn primary', type: 'button', text: '+ 新建项目', onclick: () => openProjectPanel(null) }),
+    el('button', { class: 'btn primary', type: 'button', text: '＋ 新增工作项', onclick: () => startNewTask() }),
+    el('button', { class: 'btn', type: 'button', text: '+ 新建项目', onclick: () => openProjectPanel(null) }),
   ]));
 
   const project = selectedProject();
@@ -135,7 +136,15 @@ function buildDetail() {
   const project = selectedProject();
   const wrap = el('section', { class: 'section-card dev-detail' });
   if (!project) {
-    wrap.append(emptyState('左侧还没有项目。新建项目后即可拆任务、写日志。', '新建项目', () => openProjectPanel(null)));
+    wrap.append(emptyState('左侧还没有项目。可以直接在下面添加第一条工作项（自动归入「我的工作」项目），也可以先新建项目。', '新建项目', () => openProjectPanel(null)));
+    const quick = el('div', { class: 'section-card', style: { marginTop: '12px' } }, [
+      el('div', { class: 'section-head' }, [
+        el('h3', { text: '新增工作项' }),
+        el('span', { class: 'section-sub', text: '还没有项目，自动归入「我的工作」' }),
+      ]),
+    ]);
+    quick.append(buildTaskComposer(null));
+    wrap.append(quick);
     return wrap;
   }
   const p = el('div', { class: 'section-head' }, [
@@ -191,18 +200,31 @@ function buildTasks(project) {
     }
   }
 
-  const title = el('input', { type: 'text', placeholder: '新任务标题，回车添加' });
+  wrap.append(buildTaskComposer(project));
+  return wrap;
+}
+
+/** 工作项输入区：project 为 null 时自动归入「我的工作」（没有项目会即时新建） */
+function buildTaskComposer(project) {
+  const { ctx } = R;
+  const title = el('input', {
+    type: 'text',
+    class: 'task-quick-input',
+    placeholder: project ? '新任务标题，回车添加' : '第一条工作项标题，回车添加',
+  });
   const due = el('input', { type: 'date', value: '' });
   const priority = el('select', {});
   [['normal', '普通'], ['high', '高']].forEach((pair) => priority.append(el('option', { value: pair[0], text: pair[1] })));
   const submit = () => {
     const text = title.value.trim();
     if (!text) { title.focus(); return; }
-    ctx.store.mutate((d) => createTask(d, project.id, {
+    const result = ctx.store.mutate((d) => addWorkItem(d, project ? project.id : null, {
       title: text,
       dueDate: due.value || null,
       priority: priority.value,
     }));
+    R.selectedId = result.projectId;
+    R.tab = 'tasks';
     title.value = '';
     due.value = '';
     draw();
@@ -210,11 +232,23 @@ function buildTasks(project) {
   title.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') submit();
   });
-  wrap.append(el('div', { class: 'form-inline', style: { marginTop: '10px' } }, [
+  R.taskInput = title;
+  return el('div', { class: 'form-inline', style: { marginTop: '10px' } }, [
     title, due, priority,
-    el('button', { class: 'btn primary small', type: 'button', text: '添加任务', onclick: submit }),
-  ]));
-  return wrap;
+    el('button', { class: 'btn primary small', type: 'button', text: '新增工作项', onclick: submit }),
+  ]);
+}
+
+function startNewTask() {
+  if (!R) return;
+  if (R.tab !== 'tasks') {
+    R.tab = 'tasks';
+    draw();
+  }
+  setTimeout(() => {
+    if (!R) return;
+    if (R.taskInput) R.taskInput.focus();
+  }, 0);
 }
 
 function buildTaskRow(task, isDone) {
