@@ -34,6 +34,7 @@ import {
   deleteProject,
   deleteTask,
   deleteWorkoutLog,
+  dietDaySummary,
   ensureMealLog,
   findDevLog,
   gameWeeklyMinutes,
@@ -73,6 +74,7 @@ import {
   waterCups,
   weeklyMinutes,
   weightChart,
+  workoutDaySummary,
   workoutLogForDate,
 } from '../../static/js/models.js';
 
@@ -362,6 +364,41 @@ test('健身：同一天体重只留最后一条，30 天折线三点归一', ()
   assert.equal(chart3.points.filter((p) => p.date === TODAY).length, 1);
 });
 
+test('健身：日历摘要显示部位、动作、组数与每组次数，未打卡回退到计划', () => {
+  const data = baseData();
+  updateTemplate(data, 7, { title: '胸+三头' });
+  addTemplateExercise(data, 7);
+  data.workoutTemplates[6].exercises[0] = { name: '卧推', sets: 3, reps: 10, durationMinutes: null };
+
+  const planned = workoutDaySummary(data, TODAY);
+  assert.equal(planned.hasLog, false);
+  assert.equal(planned.planned, true, '当天有模板但还没打卡');
+  assert.equal(planned.title, '胸+三头');
+  assert.deepEqual(planned.exercises, []);
+
+  const log = buildWorkoutLogFromTemplate(data, TODAY);
+  log.exercises[0].sets = [{ weight: 40, reps: 10 }, { weight: 40, reps: 10 }, { weight: 40, reps: 8 }];
+  log.exercises.push({ name: '跑步机', sets: [], durationMinutes: 30 });
+
+  const summary = workoutDaySummary(data, TODAY);
+  assert.equal(summary.hasLog, true);
+  assert.equal(summary.skipped, false);
+  assert.equal(summary.planned, false);
+  assert.equal(summary.title, '胸+三头');
+  assert.equal(summary.exercises.length, 2);
+  assert.deepEqual(summary.exercises[0], { name: '卧推', sets: 3, reps: [10, 10, 8], durationMinutes: null });
+  assert.deepEqual(summary.exercises[1], { name: '跑步机', sets: 0, reps: [], durationMinutes: 30 });
+
+  updateWorkoutLog(data, log.id, { skipped: true });
+  assert.equal(workoutDaySummary(data, TODAY).skipped, true, '标记没练也要在日历上体现');
+
+  log._pendingDelete = true;
+  const afterDelete = workoutDaySummary(data, TODAY);
+  assert.equal(afterDelete.hasLog, false, '挂起删除的打卡不参与日历');
+  assert.equal(afterDelete.planned, true);
+  delete log._pendingDelete;
+});
+
 /* ---------------- P4e 饮食 ---------------- */
 test('饮食：四餐回车添加/删除，模板存取与整套填入，喝水打点与上限', () => {
   const data = baseData();
@@ -411,6 +448,37 @@ test('饮食：四餐回车添加/删除，模板存取与整套填入，喝水�
   setWaterCups(data, TODAY, -3, 8);
   assert.equal(waterCups(data, TODAY), 0);
   assert.equal(data.waterLogs.length, 1, '同一天只有一条 WaterLog');
+});
+
+test('饮食：日历摘要按天汇总餐数/条数/喝水，无记录时为空态', () => {
+  const data = baseData();
+  const empty = dietDaySummary(data, '2026-10-29', 8);
+  assert.equal(empty.hasData, false);
+  assert.deepEqual(empty.meals, []);
+  assert.equal(empty.mealCount, 0);
+  assert.equal(empty.itemCount, 0);
+  assert.equal(empty.water, 0);
+  assert.equal(empty.goal, 8);
+
+  addMealItem(data, TODAY, 'breakfast', '燕麦');
+  addMealItem(data, TODAY, 'lunch', '鸡胸');
+  addMealItem(data, TODAY, 'lunch', '米饭');
+  addMealItem(data, TODAY, 'snack', '香蕉');
+  setWaterCups(data, TODAY, 3, 8);
+
+  const summary = dietDaySummary(data, TODAY, 8);
+  assert.equal(summary.hasData, true);
+  assert.deepEqual(summary.meals.map((meal) => meal.label), ['早餐', '午餐', '加餐'], '没记录的餐不出现');
+  assert.deepEqual(summary.meals.map((meal) => meal.count), [1, 2, 1]);
+  assert.deepEqual(summary.meals[1].items, ['鸡胸', '米饭']);
+  assert.equal(summary.mealCount, 3);
+  assert.equal(summary.itemCount, 4);
+  assert.equal(summary.water, 3);
+
+  data.waterLogs[0].date = '2026-10-30';
+  const withoutWater = dietDaySummary(data, TODAY, 8);
+  assert.equal(withoutWater.water, 0, '喝水按日期归属，不串天');
+  assert.equal(withoutWater.hasData, true, '只有餐没有水也算有数据');
 });
 
 /* ---------------- P4f 游戏娱乐 ---------------- */

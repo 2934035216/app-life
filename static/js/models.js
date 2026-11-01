@@ -490,6 +490,39 @@ export function deleteWorkoutLog(data, id) {
   return removeItem(data.workoutLogs, id);
 }
 
+/** 日历用：某天的训练摘要（部位=训练名，动作=组数 + 每组次数/时长） */
+export function workoutDaySummary(data, date) {
+  const log = workoutLogForDate(data, date);
+  if (!log) {
+    const template = templateForDate(data, date);
+    const plannedCount = ((template && template.exercises) || []).length;
+    return {
+      hasLog: false,
+      skipped: false,
+      planned: Boolean(template && ((template.title || '').trim() || plannedCount)),
+      title: template ? template.title || '' : '',
+      exercises: [],
+    };
+  }
+  const exercises = (log.exercises || []).map((exercise) => {
+    const sets = Array.isArray(exercise.sets) ? exercise.sets : [];
+    return {
+      name: exercise.name || '',
+      sets: sets.length,
+      reps: sets.map((set) => Math.max(0, Math.floor(Number(set.reps) || 0))),
+      durationMinutes: exercise.durationMinutes == null
+        ? null : Math.max(0, Number(exercise.durationMinutes) || 0),
+    };
+  });
+  return {
+    hasLog: true,
+    skipped: Boolean(log.skipped),
+    planned: false,
+    title: log.title || '',
+    exercises,
+  };
+}
+
 export function addLogExercise(data, id) {
   const item = findById(data.workoutLogs, id);
   if (!item) return null;
@@ -660,6 +693,23 @@ export function setWaterCups(data, date, cups, goal) {
 
 export function addWaterCup(data, date, goal) {
   return setWaterCups(data, date, waterCups(data, date) + 1, goal);
+}
+
+/** 日历用：某天的饮食摘要（有记录的餐、条数、喝水杯数） */
+export function dietDaySummary(data, date, goal = 8) {
+  const meals = MEAL_TYPES.map((type) => {
+    const log = mealLogFor(data, date, type.key);
+    const items = (log && log.items) || [];
+    return { key: type.key, label: type.label, count: items.length, items: items.slice() };
+  }).filter((meal) => meal.count > 0);
+  return {
+    meals,
+    mealCount: meals.length,
+    itemCount: meals.reduce((sum, meal) => sum + meal.count, 0),
+    water: waterCups(data, date),
+    goal: Math.max(1, Number(goal) || 8),
+    hasData: meals.length > 0 || waterCups(data, date) > 0,
+  };
 }
 
 /* ============ 游戏娱乐 ============ */

@@ -597,6 +597,56 @@
 .water-cup.filled { background: #5aa9e6; border-color: #4b96d1; color: #fff; }
 .water-cup:hover { border-color: var(--accent); }
 
+/* ---------------- 月历（健身 / 饮食共用） ---------------- */
+.calendar-card { padding: 14px 15px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.calendar-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.calendar-head .calendar-title { font-size: 14px; }
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  text-align: center;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.cal-day {
+  min-height: 96px;
+  padding: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  cursor: pointer;
+}
+.cal-day:hover { border-color: var(--accent); }
+.cal-day.outside { opacity: .45; }
+.cal-day.today { border-color: var(--accent); }
+.cal-day.selected { background: var(--accent-soft); border-color: var(--accent); }
+.cal-day.trained, .cal-day.has-data { background: var(--accent-soft); }
+.cal-num { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+.cal-today { color: var(--accent); font-size: 10px; }
+.cal-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-soft);
+}
+.cal-line { word-break: break-word; }
+.cal-title { font-size: 11.5px; color: var(--accent); }
+.cal-plan { color: var(--text-muted); }
+.cal-day.skipped { background: var(--bg-elevated); }
+.cal-day.skipped .cal-line { color: var(--text-muted); }
+
 /* ---------------- 游戏 ---------------- */
 .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .game-card {

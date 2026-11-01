@@ -1,11 +1,12 @@
 // views/diet.js —— 饮食计划：按天四餐 + 喝水打点 + 餐食模板
-import { addDays, fmtDateCN, isDateStr } from '../utils.js';
+import { addDays, fmtDateCN, isDateStr, monthGrid } from '../utils.js';
 import {
   MEAL_TYPES,
   addMealItem,
   applyMealTemplate,
   createMealTemplate,
   deleteMealTemplate,
+  dietDaySummary,
   ensureMealLog,
   findById,
   mealLogFor,
@@ -27,6 +28,7 @@ export function render(root, ctx, params) {
     root,
     ctx,
     date: today,
+    monthOffset: 0,
     pending: {},
     focusMeal: params && params.focus === 'nextmeal' ? 'nextmeal' : null,
   };
@@ -57,15 +59,15 @@ function draw() {
   root.append(pageHead('饮食计划', fmtDateCN(date) + ' · 快速记吃了什么、喝了几杯水', [
     el('button', {
       class: 'btn', type: 'button', text: '← 前一天',
-      onclick: () => { R.date = addDays(date, -1); R.pending = {}; draw(); },
+      onclick: () => { R.date = addDays(date, -1); R.monthOffset = 0; R.pending = {}; draw(); },
     }),
     el('button', {
       class: 'btn', type: 'button', text: '后一天 →',
-      onclick: () => { R.date = addDays(date, 1); R.pending = {}; draw(); },
+      onclick: () => { R.date = addDays(date, 1); R.monthOffset = 0; R.pending = {}; draw(); },
     }),
     date !== ctx.today() ? el('button', {
       class: 'btn ghost', type: 'button', text: '回到今天',
-      onclick: () => { R.date = ctx.today(); R.pending = {}; draw(); },
+      onclick: () => { R.date = ctx.today(); R.monthOffset = 0; R.pending = {}; draw(); },
     }) : null,
     el('button', {
       class: 'btn', type: 'button', text: '模板管理',
@@ -77,6 +79,7 @@ function draw() {
   dateInput.addEventListener('change', () => {
     if (!isDateStr(dateInput.value)) { dateInput.value = date; return; }
     R.date = dateInput.value;
+    R.monthOffset = 0;
     R.pending = {};
     draw();
   });
@@ -85,6 +88,8 @@ function draw() {
     el('span', { class: 'spacer' }),
     el('span', { class: 'muted tiny', text: '可补记过去任意一天的餐食；输入后按回车即可添加' }),
   ]));
+
+  root.append(buildCalendar(goal));
 
   const grid = el('div', { class: 'diet-grid' });
   MEAL_TYPES.forEach((type) => grid.append(buildMealBlock(type.key, type.label, goal)));
@@ -102,6 +107,79 @@ function draw() {
   }
 }
 
+/* ---------------- 日历 ---------------- */
+function buildCalendar(goal) {
+  const { ctx, date } = R;
+  const data = ctx.store.data;
+  const today = ctx.today();
+  const grid = monthGrid(date, R.monthOffset);
+
+  const card = el('section', { class: 'section-card calendar-card' });
+  card.append(el('div', { class: 'calendar-head' }, [
+    el('button', {
+      class: 'btn ghost small', type: 'button', text: '‹ 上一月',
+      onclick: () => { R.monthOffset -= 1; draw(); },
+    }),
+    el('strong', { class: 'calendar-title', text: grid.label }),
+    el('span', { class: 'spacer' }),
+    R.monthOffset !== 0 ? el('button', {
+      class: 'btn ghost small', type: 'button', text: '回到本月',
+      onclick: () => { R.monthOffset = 0; draw(); },
+    }) : null,
+    el('button', {
+      class: 'btn ghost small', type: 'button', text: '下一月 ›',
+      onclick: () => { R.monthOffset += 1; draw(); },
+    }),
+  ]));
+  const weekdays = el('div', { class: 'calendar-weekdays' });
+  ['一', '二', '三', '四', '五', '六', '日'].forEach((name) => {
+    weekdays.append(el('span', { text: '周' + name }));
+  });
+  card.append(weekdays);
+
+  const body = el('div', { class: 'calendar-grid' });
+  grid.weeks.forEach((week) => {
+    week.forEach((day) => {
+      const summary = dietDaySummary(data, day, goal);
+      const classes = ['cal-day'];
+      if (day.slice(0, 7) !== grid.monthKey) classes.push('outside');
+      if (day === today) classes.push('today');
+      if (day === date) classes.push('selected');
+      if (summary.hasData) classes.push('has-data');
+
+      const cell = el('div', { class: classes.join(' '), dataset: { date: day } });
+      cell.append(el('div', { class: 'cal-num' }, [
+        el('span', { text: String(Number(day.slice(8))) }),
+        day === today ? el('span', { class: 'cal-today', text: '今' }) : null,
+      ]));
+      const lines = el('div', { class: 'cal-lines' });
+      if (summary.mealCount) {
+        lines.append(el('span', {
+          class: 'cal-line',
+          text: summary.meals.map((meal) => meal.label + ' ' + meal.count).join(' · '),
+        }));
+      }
+      if (summary.water) {
+        lines.append(el('span', {
+          class: 'cal-line cal-water',
+          text: '喝水 ' + summary.water + '/' + summary.goal + ' 杯',
+        }));
+      }
+      cell.append(lines);
+      cell.addEventListener('click', () => {
+        R.date = day;
+        R.monthOffset = 0;
+        R.pending = {};
+        draw();
+      });
+      body.append(cell);
+    });
+  });
+  card.append(body);
+  return card;
+}
+
+/* ---------------- 四餐 ---------------- */
 function buildMealBlock(mealType, label, goal) {
   const { ctx, date } = R;
   const data = ctx.store.data;

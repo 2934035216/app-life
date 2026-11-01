@@ -3,6 +3,7 @@ import {
   clone,
   fmtDateCN,
   isDateStr,
+  monthGrid,
   visibleItems,
   weekDates,
   weekdayCN,
@@ -23,6 +24,7 @@ import {
   updateWorkoutLog,
   upsertWeight,
   weightChart,
+  workoutDaySummary,
   workoutLogForDate,
 } from '../models.js';
 import * as toast from '../ui/toast.js';
@@ -32,9 +34,15 @@ import { el, emptyState, deleteWithUndo, field, pageHead, tabs } from '../ui/com
 let R = null;
 
 export function render(root, ctx, params) {
-  const validTab = ['plan', 'logs', 'weight'];
-  const tab = params && validTab.indexOf(params.tab) >= 0 ? params.tab : 'plan';
-  R = { root, ctx, tab, focusWeight: Boolean(params && params.focus === 'weight') };
+  const validTab = ['calendar', 'plan', 'logs', 'weight'];
+  const tab = params && validTab.indexOf(params.tab) >= 0 ? params.tab : 'calendar';
+  R = {
+    root,
+    ctx,
+    tab,
+    monthOffset: 0,
+    focusWeight: Boolean(params && params.focus === 'weight'),
+  };
   root.innerHTML = '';
   draw();
   ctx.onCleanup(() => { R = null; });
@@ -67,12 +75,14 @@ function draw() {
   ];
   root.append(pageHead('健身计划', fmtDateCN(ctx.today()) + ' · 按模板训练，记体重看趋势', actions));
   root.append(tabs([
+    { key: 'calendar', label: '日历' },
     { key: 'plan', label: '本周计划' },
     { key: 'logs', label: '打卡记录' },
     { key: 'weight', label: '体重' },
   ], R.tab, (key) => { R.tab = key; draw(); }));
 
-  if (R.tab === 'plan') drawPlan();
+  if (R.tab === 'calendar') drawCalendar();
+  else if (R.tab === 'plan') drawPlan();
   else if (R.tab === 'logs') drawLogs();
   else drawWeight();
   if (R.focusWeight) {
@@ -80,6 +90,85 @@ function draw() {
     const input = R.root.querySelector('.weight-today-input');
     if (input) setTimeout(() => input.focus(), 0);
   }
+}
+
+/* ---------------- 日历 ---------------- */
+function drawCalendar() {
+  const { root, ctx } = R;
+  const data = ctx.store.data;
+  const today = ctx.today();
+  const grid = monthGrid(today, R.monthOffset);
+
+  const card = el('section', { class: 'section-card calendar-card' });
+  card.append(el('div', { class: 'calendar-head' }, [
+    el('button', {
+      class: 'btn ghost small', type: 'button', text: '‹ 上一月',
+      onclick: () => { R.monthOffset -= 1; draw(); },
+    }),
+    el('strong', { class: 'calendar-title', text: grid.label }),
+    el('span', { class: 'spacer' }),
+    R.monthOffset !== 0 ? el('button', {
+      class: 'btn ghost small', type: 'button', text: '回到本月',
+      onclick: () => { R.monthOffset = 0; draw(); },
+    }) : null,
+    el('button', {
+      class: 'btn ghost small', type: 'button', text: '下一月 ›',
+      onclick: () => { R.monthOffset += 1; draw(); },
+    }),
+  ]));
+  card.append(el('p', {
+    class: 'muted tiny',
+    text: '每格是当天实际打卡：训练名（部位）+ 每个动作的组数与每组次数；点任意一天可以补记或修改。',
+  }));
+  const weekdays = el('div', { class: 'calendar-weekdays' });
+  ['一', '二', '三', '四', '五', '六', '日'].forEach((name) => {
+    weekdays.append(el('span', { text: '周' + name }));
+  });
+  card.append(weekdays);
+
+  const body = el('div', { class: 'calendar-grid' });
+  grid.weeks.forEach((week) => {
+    week.forEach((date) => {
+      const summary = workoutDaySummary(data, date);
+      const classes = ['cal-day'];
+      if (date.slice(0, 7) !== grid.monthKey) classes.push('outside');
+      if (date === today) classes.push('today');
+      if (summary.hasLog) classes.push(summary.skipped ? 'skipped' : 'trained');
+      else if (summary.planned) classes.push('planned');
+
+      const cell = el('div', { class: classes.join(' '), dataset: { date } });
+      cell.append(el('div', { class: 'cal-num' }, [
+        el('span', { text: String(Number(date.slice(8))) }),
+        date === today ? el('span', { class: 'cal-today', text: '今' }) : null,
+      ]));
+
+      const lines = el('div', { class: 'cal-lines' });
+      if (summary.hasLog && summary.skipped) {
+        lines.append(el('span', { class: 'cal-line', text: '没练' }));
+      } else if (summary.hasLog) {
+        lines.append(el('strong', { class: 'cal-line cal-title', text: summary.title || '训练' }));
+        summary.exercises.forEach((exercise) => {
+          let text = exercise.name || '未命名动作';
+          if (exercise.durationMinutes != null) {
+            text += ' · ' + exercise.durationMinutes + ' 分钟';
+          } else {
+            text += ' · ' + exercise.sets + ' 组 × ' + exercise.reps.join('/') + ' 次';
+          }
+          lines.append(el('span', { class: 'cal-line', text }));
+        });
+        if (!summary.exercises.length) {
+          lines.append(el('span', { class: 'cal-line', text: '没有记录动作' }));
+        }
+      } else if (summary.planned) {
+        lines.append(el('span', { class: 'cal-line cal-plan', text: '计划 · ' + (summary.title || '训练') }));
+      }
+      cell.append(lines);
+      cell.addEventListener('click', () => openCheckin(date));
+      body.append(cell);
+    });
+  });
+  card.append(body);
+  root.append(card);
 }
 
 /* ---------------- 本周模板 ---------------- */

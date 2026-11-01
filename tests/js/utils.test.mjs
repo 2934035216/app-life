@@ -14,6 +14,7 @@ import {
   isoDayOfWeek,
   lastNDates,
   minutesToHours,
+  monthGrid,
   sortByKeyDesc,
   stripPending,
   toInt,
@@ -74,6 +75,38 @@ test('weekDates：返回周一到周日 7 天', () => {
     '2026-10-30', '2026-10-31', '2026-11-01',
   ]);
   assert.deepEqual(lastNDates('2026-11-01', 3), ['2026-10-30', '2026-10-31', '2026-11-01']);
+});
+
+test('monthGrid：固定 6×7 周一开头，含前后月补位，可前后翻月', () => {
+  const grid = monthGrid('2026-11-01', 0);
+  assert.equal(grid.year, 2026);
+  assert.equal(grid.month, 11);
+  assert.equal(grid.monthKey, '2026-11');
+  assert.equal(grid.first, '2026-11-01');
+  assert.equal(grid.label, '2026 年 11 月');
+  assert.equal(grid.weeks.length, 6);
+  grid.weeks.forEach((week) => assert.equal(week.length, 7));
+  assert.deepEqual(grid.weeks[0], [
+    '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29',
+    '2026-10-30', '2026-10-31', '2026-11-01',
+  ]);
+  assert.deepEqual(grid.weeks[5], [
+    '2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03',
+    '2026-12-04', '2026-12-05', '2026-12-06',
+  ]);
+  const all = grid.weeks.flat();
+  assert.equal(all.indexOf('2026-11-29'), 34, '11 月 29 日落在第 5 行第 6 列');
+  all.forEach((date, i) => {
+    assert.match(date, /^\d{4}-\d{2}-\d{2}$/);
+    if (i > 0) assert.equal(date, addDays(all[i - 1], 1), '日期连续不断档');
+  });
+
+  const prev = monthGrid('2026-11-15', -1);
+  assert.equal(prev.monthKey, '2026-10');
+  assert.equal(prev.start, '2026-09-28', '10 月 1 日是周四，从 9 月 28 日周一开始');
+  const next = monthGrid('2026-12-31', 1);
+  assert.equal(next.monthKey, '2027-01');
+  assert.equal(next.label, '2027 年 1 月');
 });
 
 test('daysBetween / 中文日期格式化', () => {

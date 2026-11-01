@@ -55,6 +55,28 @@ export function weekDates(dateStr) {
   return out;
 }
 
+/**
+ * 月历网格：以 anchorDate 所在月为基准，monthOffset 前后翻月。
+ * 固定 6 行 × 7 列（周一开头），包含前后月的补位日期。
+ */
+export function monthGrid(anchorDate, monthOffset = 0) {
+  const d = toDate(anchorDate);
+  d.setDate(1);
+  d.setMonth(d.getMonth() + Number(monthOffset || 0));
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const monthKey = year + '-' + pad2(month);
+  const first = monthKey + '-01';
+  const start = weekStart(first);
+  const weeks = [];
+  for (let w = 0; w < 6; w += 1) {
+    const row = [];
+    for (let i = 0; i < 7; i += 1) row.push(addDays(start, w * 7 + i));
+    weeks.push(row);
+  }
+  return { year, month, monthKey, first, start, weeks, label: year + ' 年 ' + month + ' 月' };
+}
+
 export function weekdayCN(dateStr) {
   return WEEK_CN[toDate(dateStr).getDay()];
 }

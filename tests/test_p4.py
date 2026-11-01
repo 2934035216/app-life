@@ -229,6 +229,28 @@ class P4dFitnessTest(unittest.TestCase):
         self.assertNotIn("chart.js", self.source)
         self.assertNotIn("d3.", self.source)
 
+    def test_calendar_shows_parts_actions_sets_and_keeps_tabs(self):
+        utils = read(os.path.join(JS, "utils.js"))
+        models = read(os.path.join(JS, "models.js"))
+        self.assertIn("export function monthGrid", utils)
+        self.assertIn("export function workoutDaySummary", models)
+        self.assertIn("key: 'calendar', label: '日历'", self.source)
+        self.assertIn("monthGrid(today, R.monthOffset)", self.source)
+        self.assertIn("workoutDaySummary(data, date)", self.source)
+        self.assertIn("summary.title || '训练'", self.source)
+        self.assertIn("exercise.sets + ' 组 × ' + exercise.reps.join('/') + ' 次'", self.source,
+                      "日历格子要能看出每个动作的组数与每组次数")
+        self.assertIn("exercise.durationMinutes + ' 分钟'", self.source, "计时类动作显示时长")
+        self.assertIn("cell.addEventListener('click', () => openCheckin(date))", self.source,
+                      "点日历格子应能补记/编辑当天打卡")
+        self.assertIn("key: 'plan', label: '本周计划'", self.source)
+        self.assertIn("key: 'logs', label: '打卡记录'", self.source)
+        self.assertIn("key: 'weight', label: '体重'", self.source)
+        css = read(os.path.join(CSS, "components.css"))
+        self.assertIn(".calendar-grid {", css)
+        self.assertIn(".cal-day {", css)
+        self.assertIn(".cal-line {", css)
+
 
 class P4eDietTest(unittest.TestCase):
     def setUp(self):
@@ -254,6 +276,21 @@ class P4eDietTest(unittest.TestCase):
         self.assertIn("deleteMealTemplate(d, template.id)", self.source)
         self.assertIn("deleteWithUndo({", self.source)
         self.assertIn("模板管理", self.source)
+
+    def test_calendar_overview_keeps_daily_meals_and_water(self):
+        models = read(os.path.join(JS, "models.js"))
+        self.assertIn("export function dietDaySummary", models)
+        self.assertIn("root.append(buildCalendar(goal));", self.source)
+        self.assertIn("monthGrid(date, R.monthOffset)", self.source)
+        self.assertIn("dietDaySummary(data, day, goal)", self.source)
+        self.assertIn("R.date = day;", self.source, "点日历格子应切换当天视图")
+        self.assertIn("meal.label + ' ' + meal.count", self.source)
+        self.assertIn("'喝水 ' + summary.water + '/' + summary.goal + ' 杯'", self.source)
+        self.assertIn("buildMealBlock(type.key, type.label, goal)", self.source)
+        self.assertIn("buildWaterBlock(goal)", self.source)
+        css = read(os.path.join(CSS, "components.css"))
+        self.assertIn(".cal-day.selected {", css)
+        self.assertIn(".cal-day.has-data", css)
 
 
 class P4fGameTest(unittest.TestCase):
