@@ -64,6 +64,7 @@ const navRoot = document.getElementById('nav');
 let cleanups = [];
 let activeView = null;
 let activeRoute = 'home';
+let saveHintEl = null;
 
 function parseHash() {
   const raw = String(location.hash || '#/home').replace(/^#/, '');
@@ -122,11 +123,40 @@ function renderNav() {
     });
     navRoot.append(box);
   });
+  navRoot.append(buildSaveBox());
   navRoot.querySelectorAll('.nav-item').forEach((item) => {
     item.addEventListener('click', () => {
       navRoot.classList.remove('open');
     });
   });
+}
+
+function buildSaveBox() {
+  const box = el('div', { class: 'nav-save' });
+  const btn = el('button', { class: 'btn small nav-save-btn', type: 'button', text: '立即保存' });
+  saveHintEl = el('span', {
+    class: 'nav-save-hint',
+    text: store.savedAt
+      ? '自动保存已开启 · 上次保存 ' + store.savedAt
+      : '自动保存已开启，这里只是立刻落盘',
+  });
+  btn.addEventListener('click', async () => {
+    const wasDirty = store.dirty;
+    btn.disabled = true;
+    btn.textContent = '保存中…';
+    const ok = await store.flushNow();
+    btn.disabled = false;
+    btn.textContent = '立即保存';
+    if (!ok) return;
+    if (wasDirty) {
+      saveHintEl.textContent = '自动保存已开启 · 上次保存 ' + store.savedAt;
+      toast.success('已保存 ' + store.savedAt + '（自动保存仍然开启）');
+    } else {
+      toast.success('没有待保存的修改；自动保存始终开启');
+    }
+  });
+  box.append(btn, saveHintEl);
+  return box;
 }
 
 function makeCtx() {
@@ -221,6 +251,9 @@ function showBootError(err) {
 
 function bindGlobals() {
   store.onSaved((clock) => panel.markSaved(clock));
+  store.onSaved((clock) => {
+    if (saveHintEl) saveHintEl.textContent = '自动保存已开启 · 上次保存 ' + clock;
+  });
   store.onError((message) => toast.error(message));
 
   document.getElementById('nav-toggle').addEventListener('click', () => {

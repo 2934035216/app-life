@@ -111,6 +111,20 @@ class P2GlobalTest(unittest.TestCase):
         self.assertIn("beforeunload", read(os.path.join(JS, "main.js")))
         self.assertIn("sendBeacon", read(os.path.join(JS, "main.js")))
 
+    def test_manual_save_button_coexists_with_autosave(self):
+        main = read(os.path.join(JS, "main.js"))
+        self.assertIn("function buildSaveBox()", main)
+        self.assertIn("navRoot.append(buildSaveBox());", main)
+        self.assertIn("text: '立即保存'", main)
+        self.assertIn("store.flushNow()", main)
+        self.assertIn("自动保存已开启", main, "按钮旁必须说明自动保存仍然开启")
+        self.assertIn("（自动保存仍然开启）", main, "手动保存成功提示要重申自动保存")
+        self.assertIn("没有待保存的修改；自动保存始终开启", main, "无改动时也要给明确反馈")
+        self.assertIn("saveHintEl.textContent = '自动保存已开启 · 上次保存 ' + clock", main)
+        css = read(os.path.join(CSS, "layout.css"))
+        self.assertIn(".nav-save {", css)
+        self.assertIn(".nav-save-hint", css)
+
     def test_store_node_suite(self):
         code, output = node_test("tests/js/store.test.mjs")
         self.assertEqual(code, 0, output)

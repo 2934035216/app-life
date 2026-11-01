@@ -74,6 +74,29 @@ test('保存成功回调“已保存 HH:MM”并清 dirty', async () => {
   assert.equal(store.savedAt, savedClock);
 });
 
+test('flushNow：手动保存立即落盘并跳过防抖，无改动时不重复发请求', async () => {
+  const client = makeClient(async () => ({ updatedAt: 'u1' }));
+  const store = new Store(client, { shortDelay: 200, longDelay: 400, retryDelays: [10] });
+  store.init(initialData(), 'u0');
+
+  assert.equal(store.dirty, false);
+  assert.equal(await store.flushNow(), true);
+  assert.equal(client.calls.length, 0, '没有待保存改动时不应发请求');
+
+  store.mutate((data) => { data.memos.push({ id: 'm1', text: '手动保存' }); });
+  assert.equal(store.dirty, true);
+  const started = Date.now();
+  assert.equal(await store.flushNow(), true);
+  assert.ok(Date.now() - started < 180, '手动保存应跳过 200ms 防抖');
+  assert.equal(client.calls.length, 1);
+  assert.equal(client.calls[0].data.memos[0].text, '手动保存');
+  assert.equal(store.dirty, false);
+  assert.match(String(store.savedAt), /^\d{2}:\d{2}$/);
+
+  await wait(260);
+  assert.equal(client.calls.length, 1, '防抖计时器已被手动保存清掉，不应重复落盘');
+});
+
 test('409 冲突：用 serverUpdatedAt 重发一次后成功', async () => {
   const client = makeClient(async (base, data, callNo) => {
     if (callNo === 1) {
